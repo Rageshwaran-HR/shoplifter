@@ -1,7 +1,7 @@
-import 'dart:io'; // Import to check IP connectivity
+import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Import for HTTP requests
+import 'package:http/http.dart' as http;
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 void main() async {
@@ -23,9 +23,15 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        fontFamily: 'Montserrat',
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.deepPurple,
-          elevation: 4,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(20),
+            ),
+          ),
           titleTextStyle: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -51,13 +57,25 @@ class CameraSelectionPage extends StatefulWidget {
 
 class _CameraSelectionPageState extends State<CameraSelectionPage> {
   List<CameraDescription> selectedCameras = [];
-  List<String> externalCameras = []; // To store external camera IPs
+  List<String> externalCameras = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Cameras'),
+        backgroundColor: Colors.deepPurple,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+        titleTextStyle: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Montserrat',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -133,8 +151,7 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Please select or add at least one camera')),
+              const SnackBar(content: Text('Please select or add at least one camera')),
             );
           }
         },
@@ -147,7 +164,6 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
     );
   }
 
-  // Function to show a dialog to add an external camera
   void _showAddExternalCameraDialog() {
     final TextEditingController _ipController = TextEditingController();
 
@@ -189,7 +205,6 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
     );
   }
 
-  // Function to check if the entered IP is reachable
   Future<bool> _isIPReachable(String ip) async {
     try {
       final response = await http.get(Uri.parse('http://$ip'));
@@ -212,28 +227,21 @@ class CameraFeedPage extends StatefulWidget {
 
 class _CameraFeedPageState extends State<CameraFeedPage> {
   List<CameraController> controllers = [];
-  List<String> externalCamerasFeeds = []; // Mock for external camera feeds
+  List<String> externalCamerasFeeds = [];
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize local cameras
     for (var camera in widget.selectedCameras) {
-      final controller = CameraController(
-        camera,
-        ResolutionPreset.medium,
-      );
+      final controller = CameraController(camera, ResolutionPreset.medium);
       controllers.add(controller);
       controller.initialize().then((_) {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         setState(() {});
       });
     }
 
-    // Mock the external camera feeds, assuming they are reachable
     for (var ip in widget.externalCameras) {
       externalCamerasFeeds.add('External camera feed from IP: $ip');
     }
@@ -249,9 +257,32 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
 
   @override
   Widget build(BuildContext context) {
+    final totalCameraSlots = 4;
+    final cameraSlots = List.generate(totalCameraSlots, (index) {
+      if (index < controllers.length) {
+        if (controllers[index].value.isInitialized) {
+          return CameraFeedWidget(controller: controllers[index]);
+        } else {
+          return const Center(child: CircularProgressIndicator());
+        }
+      } else if (index < controllers.length + externalCamerasFeeds.length) {
+        final externalFeed = externalCamerasFeeds[index - controllers.length];
+        return ExternalCameraFeedWidget(externalFeed: externalFeed);
+      } else {
+        return const NoSignalWidget();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Camera Feeds'),
+        backgroundColor: Colors.blueGrey,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -264,58 +295,78 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
       body: AnimationLimiter(
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, // Display two camera feeds per row
+            crossAxisCount: 2,
             crossAxisSpacing: 8.0,
             mainAxisSpacing: 8.0,
+            childAspectRatio: 16 / 9,
           ),
-          itemCount: controllers.length + externalCamerasFeeds.length,
+          itemCount: totalCameraSlots,
           itemBuilder: (context, index) {
-            if (index < controllers.length) {
-              // Show local camera feed
-              if (controllers[index].value.isInitialized) {
-                return AnimationConfiguration.staggeredGrid(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  columnCount: 2,
-                  child: ScaleAnimation(
-                    child: FadeInAnimation(
-                      child: Card(
-                        elevation: 6,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: controllers[index].value.aspectRatio,
-                          child: CameraPreview(controllers[index]),
-                        ),
-                      ),
+            return AnimationConfiguration.staggeredGrid(
+              position: index,
+              duration: const Duration(milliseconds: 375),
+              columnCount: 2,
+              child: ScaleAnimation(
+                child: FadeInAnimation(
+                  child: Card(
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ),
-                );
-              } else {
-                return const Center(child: CircularProgressIndicator());
-              }
-            } else {
-              // Show external camera feed
-              final externalFeed = externalCamerasFeeds[index - controllers.length];
-              return AnimationConfiguration.staggeredGrid(
-                position: index,
-                duration: const Duration(milliseconds: 375),
-                columnCount: 2,
-                child: ScaleAnimation(
-                  child: FadeInAnimation(
-                    child: Card(
-                      elevation: 6,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(child: Text(externalFeed)),
-                    ),
+                    child: cameraSlots[index],
                   ),
                 ),
-              );
-            }
+              ),
+            );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class CameraFeedWidget extends StatelessWidget {
+  final CameraController controller;
+
+  const CameraFeedWidget({Key? key, required this.controller}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: controller.value.aspectRatio,
+      child: CameraPreview(controller),
+    );
+  }
+}
+
+class ExternalCameraFeedWidget extends StatelessWidget {
+  final String externalFeed;
+
+  const ExternalCameraFeedWidget({Key? key, required this.externalFeed}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        externalFeed,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+class NoSignalWidget extends StatelessWidget {
+  const NoSignalWidget({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      child: const Center(
+        child: Text(
+          'No Signal',
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
       ),
     );
