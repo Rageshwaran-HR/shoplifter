@@ -1,8 +1,7 @@
-import 'dart:io'; // Import to check platform
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +29,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
         fontFamily: 'Montserrat',
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.deepPurple,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -38,12 +37,12 @@ class MyApp extends StatelessWidget {
               bottom: Radius.circular(20),
             ),
           ),
-          titleTextStyle: const TextStyle(
+          titleTextStyle: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Colors.deepPurple,
         ),
       ),
@@ -97,7 +96,7 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
         title: const Text('Select Cameras'),
         backgroundColor: Colors.deepPurple,
         elevation: 0,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(20),
           ),
@@ -124,36 +123,25 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
       ),
       body: Stack(
         children: [
-          AnimationLimiter(
-            child: ListView.builder(
-              itemCount: widget.cameras.length,
-              itemBuilder: (context, index) {
-                final camera = widget.cameras[index];
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    horizontalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: CheckboxListTile(
-                        title: Text(camera.name),
-                        subtitle: Text(camera.lensDirection.toString()),
-                        value: selectedCameras.contains(camera),
-                        onChanged: (bool? selected) {
-                          setState(() {
-                            if (selected == true) {
-                              selectedCameras.add(camera);
-                            } else {
-                              selectedCameras.remove(camera);
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+          ListView.builder(
+            itemCount: widget.cameras.length,
+            itemBuilder: (context, index) {
+              final camera = widget.cameras[index];
+              return CheckboxListTile(
+                title: Text(camera.name),
+                subtitle: Text(camera.lensDirection.toString()),
+                value: selectedCameras.contains(camera),
+                onChanged: (bool? selected) {
+                  setState(() {
+                    if (selected == true) {
+                      selectedCameras.add(camera);
+                    } else {
+                      selectedCameras.remove(camera);
+                    }
+                  });
+                },
+              );
+            },
           ),
           Align(
             alignment: Alignment.bottomLeft,
@@ -182,15 +170,13 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please select or add at least one camera')),
+              const SnackBar(
+                  content: Text('Please select or add at least one camera')),
             );
           }
         },
         tooltip: 'Next',
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Icon(Icons.arrow_forward, key: UniqueKey()),
-        ),
+        child: const Icon(Icons.arrow_forward),
       ),
     );
   }
@@ -205,7 +191,8 @@ class _CameraSelectionPageState extends State<CameraSelectionPage> {
           title: const Text('Add External Camera'),
           content: TextField(
             controller: _ipController,
-            decoration: const InputDecoration(hintText: 'Enter Camera IP Address'),
+            decoration:
+                const InputDecoration(hintText: 'Enter Camera IP Address'),
           ),
           actions: <Widget>[
             TextButton(
@@ -250,7 +237,10 @@ class CameraFeedPage extends StatefulWidget {
   final List<CameraDescription> selectedCameras;
   final List<String> externalCameras;
 
-  const CameraFeedPage({super.key, required this.selectedCameras, required this.externalCameras});
+  const CameraFeedPage(
+      {super.key,
+      required this.selectedCameras,
+      required this.externalCameras});
 
   @override
   _CameraFeedPageState createState() => _CameraFeedPageState();
@@ -259,12 +249,14 @@ class CameraFeedPage extends StatefulWidget {
 class _CameraFeedPageState extends State<CameraFeedPage> {
   List<CameraController> controllers = [];
   List<String> externalCamerasFeeds = [];
+  String? enlargedFeed;
 
   @override
   void initState() {
     super.initState();
 
-    for (var camera in widget.selectedCameras) {
+    // Initialize camera controllers for selected cameras
+    for (var camera in widget.selectedCameras.take(4)) { // Take at most 4 cameras
       final controller = CameraController(camera, ResolutionPreset.medium);
       controllers.add(controller);
       controller.initialize().then((_) {
@@ -273,7 +265,8 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
       });
     }
 
-    for (var ip in widget.externalCameras) {
+    // Set up external camera feeds
+    for (var ip in widget.externalCameras.take(4)) { // Limit external cameras to 4
       externalCamerasFeeds.add('External camera feed from IP: $ip');
     }
   }
@@ -288,17 +281,31 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
 
   @override
   Widget build(BuildContext context) {
-    final totalCameraSlots = 4;
+    final totalCameraSlots = 4; // Limit to 4 camera feeds
     final cameraSlots = List.generate(totalCameraSlots, (index) {
       if (index < controllers.length) {
         if (controllers[index].value.isInitialized) {
-          return CameraFeedWidget(controller: controllers[index]);
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                enlargedFeed = 'Camera ${index + 1}';
+              });
+            },
+            child: CameraFeedWidget(controller: controllers[index]),
+          );
         } else {
           return const Center(child: CircularProgressIndicator());
         }
       } else if (index < controllers.length + externalCamerasFeeds.length) {
         final externalFeed = externalCamerasFeeds[index - controllers.length];
-        return ExternalCameraFeedWidget(externalFeed: externalFeed);
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              enlargedFeed = externalFeed;
+            });
+          },
+          child: ExternalCameraFeedWidget(externalFeed: externalFeed),
+        );
       } else {
         return const NoSignalWidget();
       }
@@ -323,35 +330,50 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
           ),
         ],
       ),
-      body: AnimationLimiter(
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 8.0,
-            mainAxisSpacing: 8.0,
-            childAspectRatio: 16 / 9,
-          ),
-          itemCount: totalCameraSlots,
-          itemBuilder: (context, index) {
-            return AnimationConfiguration.staggeredGrid(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              columnCount: 2,
-              child: ScaleAnimation(
-                child: FadeInAnimation(
-                  child: Card(
-                    elevation: 6,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+      body: enlargedFeed == null
+          ? GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // Adjust to 2 columns
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
+                childAspectRatio: 16 / 9,
+              ),
+              itemCount: totalCameraSlots,
+              itemBuilder: (context, index) {
+                return Card(
+                  elevation: 6,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: cameraSlots[index],
+                );
+              },
+            )
+          : Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    enlargedFeed = null;
+                  });
+                },
+                child: SizedBox.expand(
+                  child: Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: enlargedFeed == null
+                          ? const Text('No Feed')
+                          : enlargedFeed!.startsWith('External camera feed')
+                              ? ExternalCameraFeedWidget(
+                                  externalFeed: enlargedFeed!)
+                              : CameraFeedWidget(
+                                  controller: controllers[
+                                      int.parse(enlargedFeed!.split(' ')[1]) -
+                                          1]),
                     ),
-                    child: cameraSlots[index],
                   ),
                 ),
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }
@@ -359,7 +381,8 @@ class _CameraFeedPageState extends State<CameraFeedPage> {
 class CameraFeedWidget extends StatelessWidget {
   final CameraController controller;
 
-  const CameraFeedWidget({Key? key, required this.controller}) : super(key: key);
+  const CameraFeedWidget({Key? key, required this.controller})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +396,8 @@ class CameraFeedWidget extends StatelessWidget {
 class ExternalCameraFeedWidget extends StatelessWidget {
   final String externalFeed;
 
-  const ExternalCameraFeedWidget({Key? key, required this.externalFeed}) : super(key: key);
+  const ExternalCameraFeedWidget({Key? key, required this.externalFeed})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
