@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io'; // Import to check platform
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,9 +6,15 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Fetch the available cameras before initializing the app.
-  final cameras = await availableCameras();
-  runApp(MyApp(cameras: cameras));
+
+  // Check if running on Windows
+  if (Platform.isWindows) {
+    runApp(MyWindowsApp());
+  } else {
+    // Fetch the available cameras before initializing the app.
+    final cameras = await availableCameras();
+    runApp(MyApp(cameras: cameras));
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -42,6 +48,31 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: CameraSelectionPage(cameras: cameras),
+    );
+  }
+}
+
+class MyWindowsApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Detectify (Windows)',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        fontFamily: 'Montserrat',
+      ),
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text('Detectify for Windows'),
+        ),
+        body: Center(
+          child: Text(
+            'Camera functionality is not yet implemented for Windows.',
+            style: TextStyle(fontSize: 20),
+          ),
+        ),
+      ),
     );
   }
 }
